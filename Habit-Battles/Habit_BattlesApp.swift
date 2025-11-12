@@ -2,31 +2,32 @@
 //  Habit_BattlesApp.swift
 //  Habit-Battles
 //
-//  Created by Mike Gweth Lango on 11/10/25.
+//  Main app entry point with authentication flow
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct Habit_BattlesApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
+    @StateObject private var authService = AuthService()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Group {
+                if authService.isLoading {
+                    // Show loading screen while checking session
+                    ProgressView("Loading...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.black)
+                } else if authService.isAuthenticated {
+                    // Show main app content when authenticated
+                    ContentView()
+                } else {
+                    // Show login screen when not authenticated
+                    LoginView()
+                }
+            }
+            .environmentObject(authService)
         }
-        .modelContainer(sharedModelContainer)
     }
 }
