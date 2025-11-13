@@ -31,25 +31,24 @@ class AuthService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
-        // Read any cached session from Supabase Auth
-        guard let session = supabase.auth.session else {
+        do {
+            // Fetch current session (throws if none available)
+            let session = try await supabase.auth.session
+            let user = session.user
+            self.currentUser = user
+            self.isAuthenticated = true
+            
+            // Ensure user has a profile (create default if needed)
+            do {
+                _ = try await profileService.ensureProfile(userId: user.id.uuidString)
+            } catch {
+                print("Warning: Failed to ensure profile: \(error)")
+                // Continue anyway - profile creation can be retried later
+            }
+        } catch {
             // No active session
             self.currentUser = nil
             self.isAuthenticated = false
-            return
-        }
-        
-        // Promote session user into published state
-        let user = session.user
-        self.currentUser = user
-        self.isAuthenticated = true
-        
-        // Ensure user has a profile (create default if needed)
-        do {
-            _ = try await profileService.ensureProfile(userId: user.id.uuidString)
-        } catch {
-            print("Warning: Failed to ensure profile: \(error)")
-            // Continue anyway - profile creation can be retried later
         }
     }
     
@@ -80,8 +79,12 @@ class AuthService: ObservableObject {
     
     /// Get the current authenticated user
     func getCurrentUser() async -> User? {
-        // Return the user from the current session if available
-        return supabase.auth.session?.user
+        do {
+            let session = try await supabase.auth.session
+            return session.user
+        } catch {
+            return nil
+        }
     }
 }
 
