@@ -49,14 +49,13 @@ class StatsService: ObservableObject {
             let target_per_week: Int
         }
         
-        let decoder = JSONDecoder()
-        let habitsResponse = try await supabase
+        let habitsResponse: Supabase.PostgrestResponse<[HabitInfo]> = try await supabase
             .from("habits")
             .select("id, name, target_per_week")
             .eq("user_id", value: userId)
             .execute()
         
-        let habits = try decoder.decode([HabitInfo].self, from: habitsResponse.value)
+        let habits = habitsResponse.value
         
         // Get check-ins for this week
         let habitIds = habits.map { $0.id }
@@ -74,7 +73,7 @@ class StatsService: ObservableObject {
             let checkin_date: String
         }
         
-        let weekResponse = try await supabase
+        let weekResponse: Supabase.PostgrestResponse<[CheckInInfo]> = try await supabase
             .from("checkins")
             .select("habit_id, checkin_date")
             .eq("user_id", value: userId)
@@ -88,14 +87,14 @@ class StatsService: ObservableObject {
             let id: String
         }
         
-        let totalResponse = try await supabase
+        let totalResponse: Supabase.PostgrestResponse<[TotalCheckIn]> = try await supabase
             .from("checkins")
             .select("id")
             .eq("user_id", value: userId)
             .execute()
         
-        let weekCheckins = try decoder.decode([CheckInInfo].self, from: weekResponse.value)
-        let totalCheckins = try decoder.decode([TotalCheckIn].self, from: totalResponse.value)
+        let weekCheckins = weekResponse.value
+        let totalCheckins = totalResponse.value
         
         // Calculate weekly progress for each habit
         var habitProgress: [String: Int] = [:]
@@ -133,15 +132,14 @@ class StatsService: ObservableObject {
             let checkin_date: String
         }
         
-        let decoder = JSONDecoder()
-        let response = try await supabase
+        let response: Supabase.PostgrestResponse<[CheckInDate]> = try await supabase
             .from("checkins")
             .select("checkin_date")
             .eq("user_id", value: userId)
             .order("checkin_date", ascending: false)
             .execute()
         
-        let checkinsData = try decoder.decode([CheckInDate].self, from: response.value)
+        let checkinsData = response.value
         
         guard !checkinsData.isEmpty else {
             return StreakData(dailyStreak: 0, weeklyStreak: 0, lastCheckinDate: nil)

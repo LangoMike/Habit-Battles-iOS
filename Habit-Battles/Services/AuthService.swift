@@ -31,7 +31,7 @@ class AuthService: ObservableObject {
         isLoading = true
         do {
             // Get current session from Supabase
-            let session = try await supabase.auth.session
+            let session = try await supabase.auth.session()
             let user = session.user
             self.currentUser = user
             self.isAuthenticated = true
@@ -79,7 +79,7 @@ class AuthService: ObservableObject {
     /// Get the current authenticated user
     func getCurrentUser() async -> User? {
         do {
-            let user = try await supabase.auth.user
+            let user = try await supabase.auth.user()
             return user
         } catch {
             return nil

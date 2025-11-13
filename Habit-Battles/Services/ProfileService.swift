@@ -24,18 +24,15 @@ class ProfileService: ObservableObject {
         defer { isLoading = false }
         
         // Try to fetch existing profile
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        
         do {
-            let response = try await supabase
+            let response: Supabase.PostgrestResponse<Profile> = try await supabase
                 .from("profiles")
                 .select("*")
                 .eq("id", value: userId)
                 .single()
                 .execute()
             
-            let profile = try decoder.decode(Profile.self, from: response.value)
+            let profile = response.value
             self.currentProfile = profile
             return profile
         } catch {
@@ -72,17 +69,14 @@ class ProfileService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        
-        let response = try await supabase
+        let response: Supabase.PostgrestResponse<Profile> = try await supabase
             .from("profiles")
             .select("*")
             .eq("id", value: userId)
             .single()
             .execute()
         
-        let profile = try decoder.decode(Profile.self, from: response.value)
+        let profile = response.value
         self.currentProfile = profile
         return profile
     }

@@ -27,17 +27,15 @@ class HabitService: ObservableObject {
         let (weekStart, weekEnd) = getWeekBounds(timezone: timezone)
         
         // Fetch all habits for user
-        let response = try await supabase
+        // Pull all habit records for the user
+        let response: Supabase.PostgrestResponse<[Habit]> = try await supabase
             .from("habits")
             .select("*")
             .eq("user_id", value: userId)
             .order("created_at", ascending: true)
             .execute()
         
-        // Decode habits from response
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let allHabits = try decoder.decode([Habit].self, from: response.value)
+        let allHabits = response.value
         
         // Fetch check-ins for this week
         let habitIds = allHabits.map { $0.id }
@@ -51,7 +49,8 @@ class HabitService: ObservableObject {
             let checkin_date: String
         }
         
-        let weekResponse = try await supabase
+        // Gather this week's check-ins for progress tracking
+        let weekResponse: Supabase.PostgrestResponse<[CheckInResponse]> = try await supabase
             .from("checkins")
             .select("habit_id, checkin_date")
             .eq("user_id", value: userId)
@@ -65,7 +64,7 @@ class HabitService: ObservableObject {
             let habit_id: String
         }
         
-        let todayResponse = try await supabase
+        let todayResponse: Supabase.PostgrestResponse<[TodayCheckInResponse]> = try await supabase
             .from("checkins")
             .select("habit_id")
             .eq("user_id", value: userId)
@@ -73,9 +72,9 @@ class HabitService: ObservableObject {
             .eq("checkin_date", value: today)
             .execute()
         
-        // Decode responses
-        let weekCheckins = try decoder.decode([CheckInResponse].self, from: weekResponse.value)
-        let todayCheckins = try decoder.decode([TodayCheckInResponse].self, from: todayResponse.value)
+        // Decode responses directly from Supabase helper
+        let weekCheckins = weekResponse.value
+        let todayCheckins = todayResponse.value
         
         // Process check-ins into progress data
         let doneTodaySet = Set(todayCheckins.map { $0.habit_id })
@@ -179,7 +178,7 @@ class HabitService: ObservableObject {
         }
         
         do {
-            let existingResponse = try await supabase
+            let existingResponse: Supabase.PostgrestResponse<ExistingCheckIn?> = try await supabase
                 .from("checkins")
                 .select("id")
                 .eq("user_id", value: userId)
@@ -189,7 +188,7 @@ class HabitService: ObservableObject {
                 .execute()
             
             // If we get data, it means already checked in
-            if existingResponse.value.count > 0 {
+            if existingResponse.value != nil {
                 throw NSError(domain: "HabitService", code: 409, userInfo: [NSLocalizedDescriptionKey: "Already checked in for today"])
             }
         } catch {

@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import Supabase
+import SwiftUI
 
 struct CalendarCheckIn: Identifiable {
     let id: String
@@ -52,10 +53,8 @@ class CalendarService: ObservableObject {
             let name: String
         }
         
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        
-        let checkinResponse = try await supabase
+        // Pull check-in rows for the selected date range
+        let checkinResponse: Supabase.PostgrestResponse<[CheckInResponse]> = try await supabase
             .from("checkins")
             .select("habit_id, checkin_date, created_at")
             .eq("user_id", value: userId)
@@ -64,7 +63,7 @@ class CalendarService: ObservableObject {
             .order("checkin_date", ascending: false)
             .execute()
         
-        let checkinData = try decoder.decode([CheckInResponse].self, from: checkinResponse.value)
+        let checkinData = checkinResponse.value
         
         guard !checkinData.isEmpty else {
             self.checkins = []
@@ -80,13 +79,14 @@ class CalendarService: ObservableObject {
         }
         
         // Fetch habit names
-        let habitResponse = try await supabase
+        // Fetch associated habit metadata for name lookups
+        let habitResponse: Supabase.PostgrestResponse<[HabitResponse]> = try await supabase
             .from("habits")
             .select("id, name")
             .in("id", values: habitIds)
             .execute()
         
-        let habitData = try decoder.decode([HabitResponse].self, from: habitResponse.value)
+        let habitData = habitResponse.value
         
         // Create habit map
         var habitMap: [String: String] = [:]
