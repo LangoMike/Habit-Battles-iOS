@@ -178,17 +178,17 @@ class HabitService: ObservableObject {
         }
         
         do {
-            let existingResponse: Supabase.PostgrestResponse<ExistingCheckIn?> = try await supabase
+            let existingResponse: Supabase.PostgrestResponse<[ExistingCheckIn]> = try await supabase
                 .from("checkins")
                 .select("id")
                 .eq("user_id", value: userId)
                 .eq("habit_id", value: habitId)
                 .eq("checkin_date", value: today)
-                .maybeSingle()
+                .limit(1)
                 .execute()
             
             // If we get data, it means already checked in
-            if existingResponse.value != nil {
+            if existingResponse.value.first != nil {
                 throw NSError(domain: "HabitService", code: 409, userInfo: [NSLocalizedDescriptionKey: "Already checked in for today"])
             }
         } catch {
