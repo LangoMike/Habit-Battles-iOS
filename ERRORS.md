@@ -11,3 +11,6 @@ The new behavior ensures that the locally stored session is always emitted, rega
 If you rely on the initial session to opt users in, you need to add an additional check for `session.isExpired` in the session.
 
 Check https://github.com/supabase/supabase-swift/pull/822 for more information.
+
+
+Failed to build debug session: keyNotFound(CodingKeys(stringValue: "createdAt", intValue: nil), Swift.DecodingError.Context(codingPath: [], debugDescription: "No value associated with key CodingKeys(stringValue: \"createdAt\", intValue: nil) (\"createdAt\").", underlyingError: nil))
