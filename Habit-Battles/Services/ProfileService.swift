@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 import Supabase
 
 /// Service for handling user profile operations
@@ -23,18 +24,22 @@ class ProfileService: ObservableObject {
         defer { isLoading = false }
         
         // Try to fetch existing profile
-        let { data: existingProfile, error: fetchError } = try await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", value: userId)
-            .single()
-            .execute()
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
         
-        // If profile exists, return it
-        if let profileData = existingProfile, 
-           let profile = try? JSONDecoder().decode(Profile.self, from: profileData) {
+        do {
+            let response = try await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", value: userId)
+                .single()
+                .execute()
+            
+            let profile = try decoder.decode(Profile.self, from: response.value)
             self.currentProfile = profile
             return profile
+        } catch {
+            // Profile doesn't exist, will create one below
         }
         
         // Profile doesn't exist, create one with default username
@@ -53,14 +58,10 @@ class ProfileService: ObservableObject {
         encoder.dateEncodingStrategy = .iso8601
         let profileJSON = try encoder.encode(newProfile)
         
-        let { error: insertError } = try await supabase
+        try await supabase
             .from("profiles")
             .insert(profileJSON)
             .execute()
-        
-        if let insertError = insertError {
-            throw insertError
-        }
         
         self.currentProfile = newProfile
         return newProfile
@@ -71,20 +72,17 @@ class ProfileService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
-        let { data, error } = try await supabase
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        
+        let response = try await supabase
             .from("profiles")
             .select("*")
             .eq("id", value: userId)
             .single()
             .execute()
         
-        if let error = error {
-            throw error
-        }
-        
-        guard let data = data else { return nil }
-        
-        let profile = try JSONDecoder().decode(Profile.self, from: data)
+        let profile = try decoder.decode(Profile.self, from: response.value)
         self.currentProfile = profile
         return profile
     }
@@ -98,15 +96,11 @@ class ProfileService: ObservableObject {
         encoder.dateEncodingStrategy = .iso8601
         let profileJSON = try encoder.encode(profile)
         
-        let { error } = try await supabase
+        try await supabase
             .from("profiles")
             .update(profileJSON)
             .eq("id", value: profile.id)
             .execute()
-        
-        if let error = error {
-            throw error
-        }
         
         self.currentProfile = profile
     }

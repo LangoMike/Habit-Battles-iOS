@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 import Supabase
 
 struct CalendarCheckIn: Identifiable {
@@ -40,7 +41,21 @@ class CalendarService: ObservableObject {
         let endISO = formatDate(endDate)
         
         // Fetch check-ins for the date range
-        let { data: checkinData, error: checkinError } = try await supabase
+        struct CheckInResponse: Codable {
+            let habit_id: String
+            let checkin_date: String
+            let created_at: String?
+        }
+        
+        struct HabitResponse: Codable {
+            let id: String
+            let name: String
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        
+        let checkinResponse = try await supabase
             .from("checkins")
             .select("habit_id, checkin_date, created_at")
             .eq("user_id", value: userId)
@@ -49,17 +64,15 @@ class CalendarService: ObservableObject {
             .order("checkin_date", ascending: false)
             .execute()
         
-        if let checkinError = checkinError {
-            throw checkinError
-        }
+        let checkinData = try decoder.decode([CheckInResponse].self, from: checkinResponse.value)
         
-        guard let checkinData = checkinData, !checkinData.isEmpty else {
+        guard !checkinData.isEmpty else {
             self.checkins = []
             return
         }
         
         // Get habit IDs
-        let habitIds = Array(Set(checkinData.compactMap { $0["habit_id"] as? String }))
+        let habitIds = Array(Set(checkinData.map { $0.habit_id }))
         
         guard !habitIds.isEmpty else {
             self.checkins = []
@@ -67,45 +80,33 @@ class CalendarService: ObservableObject {
         }
         
         // Fetch habit names
-        let { data: habitData, error: habitError } = try await supabase
+        let habitResponse = try await supabase
             .from("habits")
             .select("id, name")
             .in("id", values: habitIds)
             .execute()
         
-        if let habitError = habitError {
-            throw habitError
-        }
+        let habitData = try decoder.decode([HabitResponse].self, from: habitResponse.value)
         
         // Create habit map
         var habitMap: [String: String] = [:]
-        (habitData ?? []).forEach { habit in
-            if let id = habit["id"] as? String,
-               let name = habit["name"] as? String {
-                habitMap[id] = name
-            }
+        habitData.forEach { habit in
+            habitMap[habit.id] = habit.name
         }
         
         // Combine check-ins with habit names
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        
-        self.checkins = checkinData.compactMap { checkin in
-            guard let habitId = checkin["habit_id"] as? String,
-                  let checkinDate = checkin["checkin_date"] as? String,
-                  let habitName = habitMap[habitId] else {
-                return nil
-            }
-            
-            var createdAt: Date?
-            if let createdAtStr = checkin["created_at"] as? String {
+        self.checkins = checkinData.map { checkin in
+            let createdAt: Date?
+            if let createdAtStr = checkin.created_at {
                 createdAt = ISO8601DateFormatter().date(from: createdAtStr)
+            } else {
+                createdAt = nil
             }
             
             return CalendarCheckIn(
                 id: UUID().uuidString,
-                habitName: habitName,
-                checkinDate: checkinDate,
+                habitName: habitMap[checkin.habit_id] ?? "Unknown Habit",
+                checkinDate: checkin.checkin_date,
                 createdAt: createdAt
             )
         }

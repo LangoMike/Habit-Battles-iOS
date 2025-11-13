@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 import Supabase
 
 /// Statistics data structure matching webapp
@@ -42,33 +43,20 @@ class StatsService: ObservableObject {
         let (weekStart, weekEnd) = getWeekBounds(timezone: timezone)
         
         // Get all user's habits
-        let { data: habitsData, error: habitsError } = try await supabase
-            .from("habits")
-            .select("id, name, target_per_week")
-            .eq("user_id", value: userId)
-            .execute()
-        
-        if let habitsError = habitsError {
-            throw habitsError
-        }
-        
-        guard let habitsData = habitsData else {
-            return QuotaStats(
-                weeklyQuotasMet: 0,
-                totalCheckins: 0,
-                totalHabits: 0,
-                currentWeekProgress: []
-            )
-        }
-        
-        // Decode habits
-        let decoder = JSONDecoder()
         struct HabitInfo: Codable {
             let id: String
             let name: String
             let target_per_week: Int
         }
-        let habits = try habitsData.map { try decoder.decode(HabitInfo.self, from: $0) }
+        
+        let decoder = JSONDecoder()
+        let habitsResponse = try await supabase
+            .from("habits")
+            .select("id, name, target_per_week")
+            .eq("user_id", value: userId)
+            .execute()
+        
+        let habits = try decoder.decode([HabitInfo].self, from: habitsResponse.value)
         
         // Get check-ins for this week
         let habitIds = habits.map { $0.id }
@@ -81,7 +69,12 @@ class StatsService: ObservableObject {
             )
         }
         
-        let { data: weekCheckins, error: checkinsError } = try await supabase
+        struct CheckInInfo: Codable {
+            let habit_id: String
+            let checkin_date: String
+        }
+        
+        let weekResponse = try await supabase
             .from("checkins")
             .select("habit_id, checkin_date")
             .eq("user_id", value: userId)
@@ -91,18 +84,23 @@ class StatsService: ObservableObject {
             .execute()
         
         // Get total check-ins (all time)
-        let { data: totalCheckins } = try await supabase
+        struct TotalCheckIn: Codable {
+            let id: String
+        }
+        
+        let totalResponse = try await supabase
             .from("checkins")
             .select("id")
             .eq("user_id", value: userId)
             .execute()
         
+        let weekCheckins = try decoder.decode([CheckInInfo].self, from: weekResponse.value)
+        let totalCheckins = try decoder.decode([TotalCheckIn].self, from: totalResponse.value)
+        
         // Calculate weekly progress for each habit
         var habitProgress: [String: Int] = [:]
-        (weekCheckins ?? []).forEach { checkin in
-            if let habitId = checkin["habit_id"] as? String {
-                habitProgress[habitId, default: 0] += 1
-            }
+        weekCheckins.forEach { checkin in
+            habitProgress[checkin.habit_id, default: 0] += 1
         }
         
         var weeklyQuotasMet = 0
@@ -122,7 +120,7 @@ class StatsService: ObservableObject {
         
         return QuotaStats(
             weeklyQuotasMet: weeklyQuotasMet,
-            totalCheckins: (totalCheckins ?? []).count,
+            totalCheckins: totalCheckins.count,
             totalHabits: habits.count,
             currentWeekProgress: currentWeekProgress
         )
@@ -131,18 +129,21 @@ class StatsService: ObservableObject {
     /// Get streak data (daily and weekly)
     func getStreakData(userId: String) async throws -> StreakData {
         // Get all check-ins ordered by date
-        let { data: checkinsData, error } = try await supabase
+        struct CheckInDate: Codable {
+            let checkin_date: String
+        }
+        
+        let decoder = JSONDecoder()
+        let response = try await supabase
             .from("checkins")
             .select("checkin_date")
             .eq("user_id", value: userId)
             .order("checkin_date", ascending: false)
             .execute()
         
-        if let error = error {
-            throw error
-        }
+        let checkinsData = try decoder.decode([CheckInDate].self, from: response.value)
         
-        guard let checkinsData = checkinsData, !checkinsData.isEmpty else {
+        guard !checkinsData.isEmpty else {
             return StreakData(dailyStreak: 0, weeklyStreak: 0, lastCheckinDate: nil)
         }
         
@@ -150,10 +151,9 @@ class StatsService: ObservableObject {
         var uniqueDates: [String] = []
         var seenDates = Set<String>()
         checkinsData.forEach { checkin in
-            if let dateStr = checkin["checkin_date"] as? String,
-               !seenDates.contains(dateStr) {
-                uniqueDates.append(dateStr)
-                seenDates.insert(dateStr)
+            if !seenDates.contains(checkin.checkin_date) {
+                uniqueDates.append(checkin.checkin_date)
+                seenDates.insert(checkin.checkin_date)
             }
         }
         

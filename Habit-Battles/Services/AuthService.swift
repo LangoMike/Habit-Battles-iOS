@@ -6,16 +6,13 @@
 //
 
 import Foundation
+import Combine
 import Supabase
 
 /// Service for handling authentication operations
 @MainActor
 class AuthService: ObservableObject {
-<<<<<<< HEAD
-    @Published var currentUser: AuthUser?
-=======
     @Published var currentUser: User?
->>>>>>> ea94263bf59866493b6e554202a3fd31bee56a24
     @Published var isAuthenticated = false
     @Published var isLoading = false
     
@@ -35,20 +32,16 @@ class AuthService: ObservableObject {
         do {
             // Get current session from Supabase
             let session = try await supabase.auth.session
-            if let user = session.user {
-                self.currentUser = user
-                self.isAuthenticated = true
-                
-                // Ensure user has a profile (create default if needed)
-                do {
-                    _ = try await profileService.ensureProfile(userId: user.id.uuidString)
-                } catch {
-                    print("Warning: Failed to ensure profile: \(error)")
-                    // Continue anyway - profile creation can be retried later
-                }
-            } else {
-                self.currentUser = nil
-                self.isAuthenticated = false
+            let user = session.user
+            self.currentUser = user
+            self.isAuthenticated = true
+            
+            // Ensure user has a profile (create default if needed)
+            do {
+                _ = try await profileService.ensureProfile(userId: user.id.uuidString)
+            } catch {
+                print("Warning: Failed to ensure profile: \(error)")
+                // Continue anyway - profile creation can be retried later
             }
         } catch {
             // No active session
@@ -84,11 +77,7 @@ class AuthService: ObservableObject {
     }
     
     /// Get the current authenticated user
-<<<<<<< HEAD
-    func getCurrentUser() async -> AuthUser? {
-=======
     func getCurrentUser() async -> User? {
->>>>>>> ea94263bf59866493b6e554202a3fd31bee56a24
         do {
             let user = try await supabase.auth.user
             return user

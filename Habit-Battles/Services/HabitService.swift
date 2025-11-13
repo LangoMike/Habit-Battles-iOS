@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 import Supabase
 
 /// Service for handling habit operations (CRUD + check-ins)
@@ -26,26 +27,17 @@ class HabitService: ObservableObject {
         let (weekStart, weekEnd) = getWeekBounds(timezone: timezone)
         
         // Fetch all habits for user
-        let { data: habitsData, error: habitsError } = try await supabase
+        let response = try await supabase
             .from("habits")
             .select("*")
             .eq("user_id", value: userId)
             .order("created_at", ascending: true)
             .execute()
         
-        if let habitsError = habitsError {
-            throw habitsError
-        }
-        
-        guard let habitsData = habitsData else {
-            self.habits = []
-            return
-        }
-        
-        // Decode habits
+        // Decode habits from response
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let allHabits = try habitsData.map { try decoder.decode(Habit.self, from: $0) }
+        let allHabits = try decoder.decode([Habit].self, from: response.value)
         
         // Fetch check-ins for this week
         let habitIds = allHabits.map { $0.id }
@@ -54,7 +46,12 @@ class HabitService: ObservableObject {
             return
         }
         
-        let { data: weekCheckins, error: weekError } = try await supabase
+        struct CheckInResponse: Codable {
+            let habit_id: String
+            let checkin_date: String
+        }
+        
+        let weekResponse = try await supabase
             .from("checkins")
             .select("habit_id, checkin_date")
             .eq("user_id", value: userId)
@@ -64,7 +61,11 @@ class HabitService: ObservableObject {
             .execute()
         
         // Fetch today's check-ins
-        let { data: todayCheckins } = try await supabase
+        struct TodayCheckInResponse: Codable {
+            let habit_id: String
+        }
+        
+        let todayResponse = try await supabase
             .from("checkins")
             .select("habit_id")
             .eq("user_id", value: userId)
@@ -72,14 +73,16 @@ class HabitService: ObservableObject {
             .eq("checkin_date", value: today)
             .execute()
         
+        // Decode responses
+        let weekCheckins = try decoder.decode([CheckInResponse].self, from: weekResponse.value)
+        let todayCheckins = try decoder.decode([TodayCheckInResponse].self, from: todayResponse.value)
+        
         // Process check-ins into progress data
-        let doneTodaySet = Set((todayCheckins ?? []).compactMap { $0["habit_id"] as? String })
+        let doneTodaySet = Set(todayCheckins.map { $0.habit_id })
         var weekCounts: [String: Int] = [:]
         
-        (weekCheckins ?? []).forEach { checkin in
-            if let habitId = checkin["habit_id"] as? String {
-                weekCounts[habitId, default: 0] += 1
-            }
+        weekCheckins.forEach { checkin in
+            weekCounts[checkin.habit_id, default: 0] += 1
         }
         
         // Combine habits with progress
@@ -118,14 +121,10 @@ class HabitService: ObservableObject {
         encoder.dateEncodingStrategy = .iso8601
         let habitJSON = try encoder.encode(newHabit)
         
-        let { error } = try await supabase
+        try await supabase
             .from("habits")
             .insert(habitJSON)
             .execute()
-        
-        if let error = error {
-            throw error
-        }
         
         // Refresh habits list
         try await fetchHabits(userId: userId, timezone: timezone)
@@ -142,15 +141,11 @@ class HabitService: ObservableObject {
         encoder.dateEncodingStrategy = .iso8601
         let habitJSON = try encoder.encode(habit)
         
-        let { error } = try await supabase
+        try await supabase
             .from("habits")
             .update(habitJSON)
             .eq("id", value: habit.id)
             .execute()
-        
-        if let error = error {
-            throw error
-        }
         
         // Refresh habits list
         try await fetchHabits(userId: userId, timezone: timezone)
@@ -161,15 +156,11 @@ class HabitService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
-        let { error } = try await supabase
+        try await supabase
             .from("habits")
             .delete()
             .eq("id", value: habitId)
             .execute()
-        
-        if let error = error {
-            throw error
-        }
         
         // Refresh habits list
         try await fetchHabits(userId: userId, timezone: timezone)
@@ -183,23 +174,30 @@ class HabitService: ObservableObject {
         let today = getTodayDate(timezone: timezone)
         
         // Check if already checked in today
-        let { data: existing, error: checkError } = try await supabase
-            .from("checkins")
-            .select("id")
-            .eq("user_id", value: userId)
-            .eq("habit_id", value: habitId)
-            .eq("checkin_date", value: today)
-            .maybeSingle()
-            .execute()
-        
-        if checkError != nil && !(checkError?.localizedDescription.contains("PGRST116") ?? false) {
-            // PGRST116 is "not found" which is fine, means no duplicate
-            throw checkError!
+        struct ExistingCheckIn: Codable {
+            let id: String
         }
         
-        if existing != nil {
-            // Already checked in today
-            throw NSError(domain: "HabitService", code: 409, userInfo: [NSLocalizedDescriptionKey: "Already checked in for today"])
+        do {
+            let existingResponse = try await supabase
+                .from("checkins")
+                .select("id")
+                .eq("user_id", value: userId)
+                .eq("habit_id", value: habitId)
+                .eq("checkin_date", value: today)
+                .maybeSingle()
+                .execute()
+            
+            // If we get data, it means already checked in
+            if existingResponse.value.count > 0 {
+                throw NSError(domain: "HabitService", code: 409, userInfo: [NSLocalizedDescriptionKey: "Already checked in for today"])
+            }
+        } catch {
+            // If error is "not found", that's fine - means no duplicate
+            // Otherwise, rethrow
+            if !error.localizedDescription.contains("PGRST116") {
+                throw error
+            }
         }
         
         // Create check-in
@@ -215,14 +213,10 @@ class HabitService: ObservableObject {
         encoder.dateEncodingStrategy = .iso8601
         let checkInJSON = try encoder.encode(checkIn)
         
-        let { error } = try await supabase
+        try await supabase
             .from("checkins")
             .insert(checkInJSON)
             .execute()
-        
-        if let error = error {
-            throw error
-        }
         
         // Refresh habits list to update progress
         try await fetchHabits(userId: userId, timezone: timezone)
