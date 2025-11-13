@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+internal import Auth
 
 enum CalendarViewMode: String, CaseIterable {
     case week = "Week"

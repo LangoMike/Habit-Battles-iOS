@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+internal import Auth
 
 struct DashboardView: View {
     @EnvironmentObject var authService: AuthService
