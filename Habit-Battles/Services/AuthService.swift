@@ -29,26 +29,28 @@ class AuthService: ObservableObject {
     /// Check if user has an active session and ensure profile exists
     func checkSession() async {
         isLoading = true
-        do {
-            // Get current session from Supabase
-            let session = try await supabase.auth.session()
-            let user = session.user
-            self.currentUser = user
-            self.isAuthenticated = true
-            
-            // Ensure user has a profile (create default if needed)
-            do {
-                _ = try await profileService.ensureProfile(userId: user.id.uuidString)
-            } catch {
-                print("Warning: Failed to ensure profile: \(error)")
-                // Continue anyway - profile creation can be retried later
-            }
-        } catch {
+        defer { isLoading = false }
+        
+        // Read any cached session from Supabase Auth
+        guard let session = supabase.auth.session else {
             // No active session
             self.currentUser = nil
             self.isAuthenticated = false
+            return
         }
-        isLoading = false
+        
+        // Promote session user into published state
+        let user = session.user
+        self.currentUser = user
+        self.isAuthenticated = true
+        
+        // Ensure user has a profile (create default if needed)
+        do {
+            _ = try await profileService.ensureProfile(userId: user.id.uuidString)
+        } catch {
+            print("Warning: Failed to ensure profile: \(error)")
+            // Continue anyway - profile creation can be retried later
+        }
     }
     
     /// Sign in with email magic link (passwordless authentication)
@@ -78,12 +80,8 @@ class AuthService: ObservableObject {
     
     /// Get the current authenticated user
     func getCurrentUser() async -> User? {
-        do {
-            let user = try await supabase.auth.user()
-            return user
-        } catch {
-            return nil
-        }
+        // Return the user from the current session if available
+        return supabase.auth.session?.user
     }
 }
 
