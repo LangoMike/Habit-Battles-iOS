@@ -35,6 +35,13 @@ class CalendarService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            self.checkins = DebugAuthDefaults.sampleCalendarCheckins()
+            return
+        }
+#endif
+        
         // Calculate date range based on view mode
         let (startDate, endDate) = getDateRange(for: viewMode, currentDate: currentDate, timezone: timezone)
         

@@ -39,6 +39,11 @@ class StatsService: ObservableObject {
     
     /// Get quota statistics for the current week
     func getQuotaStats(userId: String, timezone: String) async throws -> QuotaStats {
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            return DebugAuthDefaults.sampleQuotaStats()
+        }
+#endif
         // Get current week dates (Monday to Sunday)
         let (weekStart, weekEnd) = getWeekBounds(timezone: timezone)
         
@@ -127,6 +132,11 @@ class StatsService: ObservableObject {
     
     /// Get streak data (daily and weekly)
     func getStreakData(userId: String) async throws -> StreakData {
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            return DebugAuthDefaults.sampleStreakData()
+        }
+#endif
         // Get all check-ins ordered by date
         struct CheckInDate: Codable {
             let checkin_date: String

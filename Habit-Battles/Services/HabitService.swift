@@ -16,11 +16,24 @@ class HabitService: ObservableObject {
     @Published var isLoading = false
     
     private let supabase = SupabaseManager.shared.client
+#if DEBUG
+    private var debugHabits: [HabitWithProgress] = []
+#endif
     
     /// Fetch all habits for the current user with progress tracking
     func fetchHabits(userId: String, timezone: String) async throws {
         isLoading = true
         defer { isLoading = false }
+        
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            if debugHabits.isEmpty {
+                debugHabits = DebugAuthDefaults.sampleHabits()
+            }
+            self.habits = debugHabits
+            return
+        }
+#endif
         
         // Get current date in user's timezone
         let today = getTodayDate(timezone: timezone)
@@ -116,6 +129,19 @@ class HabitService: ObservableObject {
             createdAt: Date()
         )
         
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            let newHabitWithProgress = HabitWithProgress(
+                habit: newHabit,
+                doneToday: false,
+                doneThisWeek: 0
+            )
+            debugHabits.append(newHabitWithProgress)
+            self.habits = debugHabits
+            return newHabit
+        }
+#endif
+        
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let habitJSON = try encoder.encode(newHabit)
@@ -136,6 +162,22 @@ class HabitService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            if let index = debugHabits.firstIndex(where: { $0.id == habit.id }) {
+                let existing = debugHabits[index]
+                let updated = HabitWithProgress(
+                    habit: habit,
+                    doneToday: existing.doneToday,
+                    doneThisWeek: existing.doneThisWeek
+                )
+                debugHabits[index] = updated
+                self.habits = debugHabits
+            }
+            return
+        }
+#endif
+        
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let habitJSON = try encoder.encode(habit)
@@ -155,6 +197,14 @@ class HabitService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            debugHabits.removeAll { $0.id == habitId }
+            self.habits = debugHabits
+            return
+        }
+#endif
+        
         try await supabase
             .from("habits")
             .delete()
@@ -171,6 +221,22 @@ class HabitService: ObservableObject {
         defer { isLoading = false }
         
         let today = getTodayDate(timezone: timezone)
+        
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            if let index = debugHabits.firstIndex(where: { $0.id == habitId }) {
+                var habitProgress = debugHabits[index]
+                if habitProgress.doneToday {
+                    throw NSError(domain: "HabitService", code: 409, userInfo: [NSLocalizedDescriptionKey: "Already checked in for today"])
+                }
+                habitProgress.doneToday = true
+                habitProgress.doneThisWeek += 1
+                debugHabits[index] = habitProgress
+                self.habits = debugHabits
+            }
+            return
+        }
+#endif
         
         // Check if already checked in today
         struct ExistingCheckIn: Codable {

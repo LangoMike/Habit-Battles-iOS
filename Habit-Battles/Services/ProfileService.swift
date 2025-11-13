@@ -23,6 +23,14 @@ class ProfileService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            let profile = DebugAuthDefaults.profile
+            self.currentProfile = profile
+            return profile
+        }
+#endif
+        
         // Try to fetch existing profile
         do {
             let response: Supabase.PostgrestResponse<Profile> = try await supabase
@@ -68,6 +76,14 @@ class ProfileService: ObservableObject {
     func fetchProfile(userId: String) async throws -> Profile? {
         isLoading = true
         defer { isLoading = false }
+        
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            let profile = DebugAuthDefaults.profile
+            self.currentProfile = profile
+            return profile
+        }
+#endif
         
         let response: Supabase.PostgrestResponse<Profile> = try await supabase
             .from("profiles")

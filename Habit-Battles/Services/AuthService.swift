@@ -15,6 +15,9 @@ class AuthService: ObservableObject {
     @Published var currentUser: User?
     @Published var isAuthenticated = false
     @Published var isLoading = false
+#if DEBUG
+    @Published var isDebugAuthenticated = false
+#endif
     
     private let supabase = SupabaseManager.shared.client
     private let profileService = ProfileService()
@@ -37,6 +40,9 @@ class AuthService: ObservableObject {
             let user = session.user
             self.currentUser = user
             self.isAuthenticated = true
+#if DEBUG
+            self.isDebugAuthenticated = false
+#endif
             
             // Ensure user has a profile (create default if needed)
             do {
@@ -49,6 +55,9 @@ class AuthService: ObservableObject {
             // No active session
             self.currentUser = nil
             self.isAuthenticated = false
+#if DEBUG
+            self.isDebugAuthenticated = false
+#endif
         }
     }
     
@@ -75,10 +84,18 @@ class AuthService: ObservableObject {
         try await supabase.auth.signOut()
         self.currentUser = nil
         self.isAuthenticated = false
+#if DEBUG
+        self.isDebugAuthenticated = false
+#endif
     }
     
     /// Get the current authenticated user
     func getCurrentUser() async -> User? {
+#if DEBUG
+        if isDebugAuthenticated {
+            return currentUser
+        }
+#endif
         do {
             let session = try await supabase.auth.session
             return session.user
@@ -92,18 +109,15 @@ class AuthService: ObservableObject {
     /// - Parameters:
     ///   - userId: Known Supabase auth user UUID to mimic (optional)
     ///   - email: Debug email shown in profile (optional)
-    func debugAuthenticate(userId: String = DebugBypassDefaults.userId, email: String = DebugBypassDefaults.email) {
-        // Bail out if no debug user provided
-        guard !userId.isEmpty else {
-            print("Debug bypass requires a userId")
-            return
-        }
+    func debugAuthenticate(userId: String = DebugAuthDefaults.userId, email: String = DebugAuthDefaults.email) {
+        let resolvedUserId = userId.isEmpty ? DebugAuthDefaults.userId : userId
+        let resolvedEmail = email.isEmpty ? DebugAuthDefaults.email : email
         
         // Build a minimal JSON payload that matches Supabase User shape
         let isoFormatter = ISO8601DateFormatter()
         let timestamp = isoFormatter.string(from: Date())
         let payload: [String: Any] = [
-            "id": userId,
+            "id": resolvedUserId,
             "app_metadata": [:],
             "user_metadata": [:],
             "aud": "authenticated",
@@ -112,7 +126,7 @@ class AuthService: ObservableObject {
             "email_change_sent_at": NSNull(),
             "new_email": NSNull(),
             "invited_at": NSNull(),
-            "email": email,
+            "email": resolvedEmail,
             "phone": NSNull(),
             "last_sign_in_at": timestamp,
             "role": "authenticated",
@@ -132,18 +146,130 @@ class AuthService: ObservableObject {
             self.currentUser = fakeUser
             self.isAuthenticated = true
             self.isLoading = false
+            self.isDebugAuthenticated = true
+            self.profileService.currentProfile = DebugAuthDefaults.profile
         } catch {
             print("Failed to build debug session: \(error)")
         }
     }
-    
-    /// Default values for the debug bypass helper
-    private enum DebugBypassDefaults {
-        /// Replace with a real Supabase auth user id to test backend calls
-        static let userId = ""
-        /// Fake login email shown in the profile tab
-        static let email = "debugger@habitbattles.dev"
-    }
 #endif
 }
+
+#if DEBUG
+extension AuthService {
+    /// Helper to detect when a supplied user id represents the debug bypass account
+    static func isDebugUserId(_ id: String) -> Bool {
+        id == DebugAuthDefaults.userId
+    }
+}
+
+/// Canonical values and sample data used by the simulator debug bypass
+enum DebugAuthDefaults {
+    static let userId = "00000000-0000-4000-8000-000000000001"
+    static let email = "simulator@habitbattles.dev"
+    static let username = "Demo Warrior"
+    static let timezone = "America/New_York"
+    
+    static var profile: Profile {
+        Profile(
+            id: userId,
+            username: username,
+            avatarUrl: nil,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+    
+    static func sampleHabits() -> [HabitWithProgress] {
+        let now = Date()
+        let habitOne = Habit(
+            id: UUID().uuidString,
+            userId: userId,
+            name: "Morning Run",
+            targetPerWeek: 4,
+            schedule: "daily",
+            timezone: timezone,
+            createdAt: now
+        )
+        
+        let habitTwo = Habit(
+            id: UUID().uuidString,
+            userId: userId,
+            name: "Reading Session",
+            targetPerWeek: 5,
+            schedule: "daily",
+            timezone: timezone,
+            createdAt: now
+        )
+        
+        let habitThree = Habit(
+            id: UUID().uuidString,
+            userId: userId,
+            name: "Hydration Check",
+            targetPerWeek: 7,
+            schedule: "daily",
+            timezone: timezone,
+            createdAt: now
+        )
+        
+        return [
+            HabitWithProgress(habit: habitOne, doneToday: true, doneThisWeek: 3),
+            HabitWithProgress(habit: habitTwo, doneToday: false, doneThisWeek: 2),
+            HabitWithProgress(habit: habitThree, doneToday: true, doneThisWeek: 6)
+        ]
+    }
+    
+    static func sampleQuotaStats() -> QuotaStats {
+        let progress = sampleHabits().map { habitWithProgress in
+            HabitProgress(
+                habitId: habitWithProgress.id,
+                habitName: habitWithProgress.name,
+                target: habitWithProgress.targetPerWeek,
+                completed: habitWithProgress.doneThisWeek,
+                isMet: habitWithProgress.doneThisWeek >= habitWithProgress.targetPerWeek
+            )
+        }
+        
+        let weeklyMet = progress.filter { $0.isMet }.count
+        let totalCheckins = progress.reduce(0) { $0 + $1.completed }
+        
+        return QuotaStats(
+            weeklyQuotasMet: weeklyMet,
+            totalCheckins: totalCheckins,
+            totalHabits: progress.count,
+            currentWeekProgress: progress
+        )
+    }
+    
+    static func sampleStreakData() -> StreakData {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let today = formatter.string(from: Date())
+        return StreakData(
+            dailyStreak: 4,
+            weeklyStreak: 3,
+            lastCheckinDate: today
+        )
+    }
+    
+    static func sampleCalendarCheckins() -> [CalendarCheckIn] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let calendar = Calendar.current
+        let today = Date()
+        let habits = sampleHabits()
+        
+        return (0..<12).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
+            let habit = habits[offset % habits.count]
+            return CalendarCheckIn(
+                id: UUID().uuidString,
+                habitName: habit.name,
+                checkinDate: formatter.string(from: date),
+                createdAt: date
+            )
+        }
+    }
+}
+#endif
 
