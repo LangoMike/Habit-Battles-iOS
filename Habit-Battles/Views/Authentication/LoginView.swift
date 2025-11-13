@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct LoginView: View {
-    @StateObject private var authService = AuthService()
+    @EnvironmentObject var authService: AuthService
     @State private var email = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -84,6 +84,22 @@ struct LoginView: View {
                 }
                 .disabled(isLoading || email.isEmpty)
                 .opacity((isLoading || email.isEmpty) ? 0.6 : 1.0)
+#if DEBUG
+#if targetEnvironment(simulator)
+                Button {
+                    // Skip email login while running on the simulator
+                    authService.debugAuthenticate()
+                } label: {
+                    Text("Debug Continue")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.gray.opacity(0.3))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                }
+#endif
+#endif
             }
             .padding(.horizontal, 32)
             
@@ -121,5 +137,5 @@ struct LoginView: View {
 
 #Preview {
     LoginView()
+        .environmentObject(AuthService())
 }
-
