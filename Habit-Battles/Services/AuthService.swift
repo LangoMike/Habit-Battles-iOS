@@ -140,6 +140,7 @@ class AuthService: ObservableObject {
             let data = try JSONSerialization.data(withJSONObject: payload, options: [])
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
             let fakeUser = try decoder.decode(User.self, from: data)
             
             // Update published auth state for simulator testing
