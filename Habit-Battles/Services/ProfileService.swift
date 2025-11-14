@@ -115,6 +115,55 @@ class ProfileService: ObservableObject {
         self.currentProfile = profile
     }
     
+    /// Upload avatar image to Supabase Storage and return public URL
+    func uploadAvatarImage(userId: String, imageData: Data, fileExtension: String = "jpg") async throws -> String {
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            return DebugAuthDefaults.profile.avatarUrl ?? ""
+        }
+#endif
+        let path = "avatars/\(userId)/avatar.\(fileExtension)"
+        try await supabase.storage
+            .from("avatars")
+            .upload(
+                path: path,
+                file: imageData,
+                options: FileOptions(
+                    cacheControl: 3600,
+                    contentType: "image/jpeg",
+                    upsert: true
+                )
+            )
+        
+        let publicURL = supabase.storage
+            .from("avatars")
+            .getPublicURL(path: path)
+        
+        return publicURL.absoluteString
+    }
+    
+    /// Check if username is available (excludes current user)
+    func isUsernameAvailable(_ username: String, excluding userId: String) async throws -> Bool {
+#if DEBUG
+        if AuthService.isDebugUserId(userId) {
+            return true
+        }
+#endif
+        struct UsernameCheckResponse: Decodable {
+            let id: String
+        }
+        
+        let response: Supabase.PostgrestResponse<[UsernameCheckResponse]> = try await supabase
+            .from("profiles")
+            .select("id")
+            .eq("username", value: username)
+            .neq("id", value: userId)
+            .limit(1)
+            .execute()
+        
+        return response.value.isEmpty
+    }
+    
     /// Generate a default username (User + random 5-digit number)
     private func generateDefaultUsername() -> String {
         let randomNum = Int.random(in: 10000...99999)

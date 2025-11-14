@@ -175,7 +175,7 @@ enum DebugAuthDefaults {
         Profile(
             id: userId,
             username: username,
-            avatarUrl: nil,
+            avatarUrl: "https://placehold.co/200x200?text=HB",
             createdAt: Date(),
             updatedAt: Date()
         )

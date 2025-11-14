@@ -72,10 +72,8 @@ struct CalendarNavigationView: View {
 struct CalendarGridView: View {
     let viewMode: CalendarViewMode
     let currentDate: Date
-    let checkins: [CalendarCheckIn]
+    @ObservedObject var calendarService: CalendarService
     let onDateTap: (Date) -> Void
-    
-    @StateObject private var calendarService = CalendarService()
     
     var body: some View {
         let days = getDays()
@@ -96,19 +94,32 @@ struct CalendarGridView: View {
             
             // Calendar grid
             if viewMode == .year {
-                // Year view: 53 weeks grid
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 53), spacing: 2) {
-                    ForEach(days, id: \.self) { date in
-                        CalendarDaySquare(
-                            date: date,
-                            count: calendarService.getCompletionCount(for: date),
-                            isToday: Calendar.current.isDateInToday(date),
-                            isCurrentPeriod: true,
-                            viewMode: viewMode,
-                            onTap: { onDateTap(date) }
-                        )
+                GeometryReader { geometry in
+                    let spacing: CGFloat = 2
+                    let desiredTile: CGFloat = 7
+                    let availableWidth = max(geometry.size.width, 1)
+                    let tentativeColumns = max(Int((availableWidth + spacing) / (desiredTile + spacing)), 12)
+                    let tileSizeNumerator = availableWidth - CGFloat(tentativeColumns - 1) * spacing
+                    let tileSize = max(min(tileSizeNumerator / CGFloat(tentativeColumns), 9), 4)
+                    let columns = Array(repeating: GridItem(.fixed(tileSize), spacing: spacing), count: tentativeColumns)
+                    let rows = ceil(Double(days.count) / Double(tentativeColumns))
+                    
+                    LazyVGrid(columns: columns, spacing: spacing) {
+                        ForEach(days, id: \.self) { date in
+                            CalendarDaySquare(
+                                date: date,
+                                count: calendarService.getCompletionCount(for: date),
+                                isToday: Calendar.current.isDateInToday(date),
+                                isCurrentPeriod: true,
+                                viewMode: viewMode,
+                                customSize: tileSize,
+                                onTap: { onDateTap(date) }
+                            )
+                        }
                     }
+                    .frame(height: CGFloat(rows) * (tileSize + spacing))
                 }
+                .frame(minHeight: 240)
             } else {
                 // Week/Month view: 7 columns
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
@@ -197,13 +208,33 @@ struct CalendarDaySquare: View {
     let isToday: Bool
     let isCurrentPeriod: Bool
     let viewMode: CalendarViewMode
+    let customSize: CGFloat?
     let onTap: () -> Void
+    
+    init(
+        date: Date,
+        count: Int,
+        isToday: Bool,
+        isCurrentPeriod: Bool,
+        viewMode: CalendarViewMode,
+        customSize: CGFloat? = nil,
+        onTap: @escaping () -> Void
+    ) {
+        self.date = date
+        self.count = count
+        self.isToday = isToday
+        self.isCurrentPeriod = isCurrentPeriod
+        self.viewMode = viewMode
+        self.customSize = customSize
+        self.onTap = onTap
+    }
     
     @StateObject private var calendarService = CalendarService()
     
     var body: some View {
         let colors = calendarService.getSquareColor(count: count)
-        let size: CGFloat = viewMode == .year ? 3 : 40
+        let defaultSize: CGFloat = viewMode == .year ? 6 : 40
+        let size = customSize ?? defaultSize
         
         Button(action: onTap) {
             ZStack {

@@ -75,7 +75,7 @@ struct CalendarView: View {
                     CalendarGridView(
                         viewMode: viewMode,
                         currentDate: currentDate,
-                        checkins: calendarService.checkins,
+                        calendarService: calendarService,
                         onDateTap: { date in
                             selectedDate = date
                             selectedCheckins = calendarService.getCheckins(for: date)
