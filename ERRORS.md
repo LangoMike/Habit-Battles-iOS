@@ -1,3 +1,6 @@
-/Users/8789017/Documents/Habit-Battles-iOS/Habit-Battles/Services/ProfileService.swift:132:35 Cannot convert value of type 'Int' to expected argument type 'String'
-/Users/8789017/Documents/Habit-Battles-iOS/Habit-Battles/Services/ProfileService.swift:138:25 Call can throw but is not marked with 'try'
-/Users/8789017/Documents/Habit-Battles-iOS/Habit-Battles/Views/Dashboard/DashboardView.swift:141:17 Closure containing control flow statement cannot be used with result builder 'ViewBuilder'
+/Users/8789017/Documents/Habit-Battles-iOS/Habit-Battles/Views/ContentView.swift:230:19 'MainActor' cannot be constructed because it has no accessible initializers
+/Users/8789017/Documents/Habit-Battles-iOS/Habit-Battles/Views/ContentView.swift:234:19 'MainActor' cannot be constructed because it has no accessible initializers
+/Users/8789017/Documents/Habit-Battles-iOS/Habit-Battles/Views/ContentView.swift:271:23 'MainActor' cannot be constructed because it has no accessible initializers
+/Users/8789017/Documents/Habit-Battles-iOS/Habit-Battles/Views/ContentView.swift:287:23 'MainActor' cannot be constructed because it has no accessible initializers
+/Users/8789017/Documents/Habit-Battles-iOS/Habit-Battles/Views/ContentView.swift:297:23 'MainActor' cannot be constructed because it has no accessible initializers
+/Users/8789017/Documents/Habit-Battles-iOS/Habit-Battles/Views/ContentView.swift:308:19 'MainActor' cannot be constructed because it has no accessible initializers
