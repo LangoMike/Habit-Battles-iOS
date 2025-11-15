@@ -227,11 +227,11 @@ struct ProfileView: View {
         guard let userId = authService.currentUser?.id.uuidString else { return }
         do {
             let profile = try await profileService.ensureProfile(userId: userId)
-            await MainActor {
+            await MainActor.run {
                 usernameInput = profile.username
             }
         } catch {
-            await MainActor {
+            await MainActor.run {
                 errorMessage = "Failed to load profile: \(error.localizedDescription)"
             }
         }
@@ -268,12 +268,12 @@ struct ProfileView: View {
                 }
                 
                 try await profileService.updateProfile(profile)
-                await MainActor {
+                await MainActor.run {
                     profileService.currentProfile = profile
                     successMessage = "Profile updated successfully."
                 }
             } catch {
-                await MainActor {
+                await MainActor.run {
                     self.errorMessage = "Failed to save changes: \(error.localizedDescription)"
                 }
             }
@@ -284,7 +284,7 @@ struct ProfileView: View {
         guard let userId = authService.currentUser?.id.uuidString else { return }
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else {
-                await MainActor {
+                await MainActor.run {
                     errorMessage = "Could not read selected image."
                 }
                 return
@@ -294,7 +294,7 @@ struct ProfileView: View {
             if var profile = profileService.currentProfile {
                 profile.avatarUrl = url
                 try await profileService.updateProfile(profile)
-                await MainActor {
+                await MainActor.run {
                     profileService.currentProfile = profile
                     if let uiImage = UIImage(data: data) {
                         avatarPreview = Image(uiImage: uiImage)
@@ -305,7 +305,7 @@ struct ProfileView: View {
                 }
             }
         } catch {
-            await MainActor {
+            await MainActor.run {
                 errorMessage = "Failed to update photo: \(error.localizedDescription)"
             }
         }

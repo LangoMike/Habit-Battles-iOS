@@ -129,13 +129,13 @@ class ProfileService: ObservableObject {
                 path: path,
                 file: imageData,
                 options: FileOptions(
-                    cacheControl: 3600,
+                    cacheControl: "3600",
                     contentType: "image/jpeg",
                     upsert: true
                 )
             )
         
-        let publicURL = supabase.storage
+        let publicURL = try supabase.storage
             .from("avatars")
             .getPublicURL(path: path)
         

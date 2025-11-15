@@ -28,7 +28,7 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-            VStack(spacing: 24) {
+                VStack(spacing: 24) {
                 // Welcome Header
                 VStack(spacing: 16) {
                     Image(systemName: "flame.fill")
@@ -117,14 +117,16 @@ struct DashboardView: View {
                 }
                 .padding()
             }
-        }
-        .background(
-            LinearGradient(
-                colors: [Color.black, Color.gray.opacity(0.3)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+            .background(
+                LinearGradient(
+                    colors: [Color.black, Color.gray.opacity(0.3)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
             )
-        )
+        }
+        // Add gradient background
         .sheet(item: $quickActionSheet) { destination in
             switch destination {
             case .friends:
@@ -138,7 +140,7 @@ struct DashboardView: View {
                     message: "Battles will let you compete head-to-head with other Habit Warriors. Stay tuned!"
                 )
             case .habits, .calendar:
-                break
+                EmptyView()
             }
         }
         .task {
