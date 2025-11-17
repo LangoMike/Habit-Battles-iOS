@@ -63,28 +63,6 @@ Habit Battles iOS demonstrates modern iOS development practices with a focus on:
 - **Architecture**: MVVM pattern with ObservableObject services
 - **Data Models**: Codable structs matching Supabase schema
 
-### Project Structure
-
-```
-Habit-Battles/
-├── Models/              # Data models matching Supabase schema
-│   ├── Profile.swift
-│   ├── Habit.swift
-│   ├── CheckIn.swift
-│   └── Friendship.swift
-├── Services/            # Business logic and API services
-│   ├── SupabaseClient.swift
-│   ├── AuthService.swift
-│   ├── ProfileService.swift
-│   ├── HabitService.swift
-│   ├── StatsService.swift
-│   └── CalendarService.swift
-└── Views/               # SwiftUI views
-    ├── Authentication/
-    ├── Habits/
-    ├── Dashboard/
-    └── Calendar/
-```
 
 ### Key Design Patterns
 

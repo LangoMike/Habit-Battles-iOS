@@ -299,3 +299,5 @@ struct PlaceholderDetailView: View {
         .environmentObject(AuthService())
 }
 
+
+

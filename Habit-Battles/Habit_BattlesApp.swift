@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct Habit_BattlesApp: App {
     @StateObject private var authService = AuthService()
+    @State private var callbackURL: URL?
     
     var body: some Scene {
         WindowGroup {
@@ -22,12 +23,23 @@ struct Habit_BattlesApp: App {
                 } else if authService.isAuthenticated {
                     // Show main app content when authenticated
                     ContentView()
+                        .environmentObject(authService)
+                } else if let callbackURL = callbackURL {
+                    // Show callback view when handling auth redirect
+                    AuthCallbackView(url: callbackURL)
+                        .environmentObject(authService)
                 } else {
                     // Show login screen when not authenticated
                     LoginView()
+                        .environmentObject(authService)
                 }
             }
-            .environmentObject(authService)
+            .onOpenURL { url in
+                // Handle deep link from magic link email, this brings us to the app from the email
+                if url.scheme == "habit-battles" {
+                    callbackURL = url
+                }
+            }
         }
     }
 }

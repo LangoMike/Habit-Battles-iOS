@@ -79,3 +79,5 @@ The Habit Battles iOS app includes an Apple Watch companion app with **simplifie
 - Complications for quick habit status
 - Haptic feedback on check-in completion
 
+
+

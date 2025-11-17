@@ -158,3 +158,5 @@ struct MotivationalQuoteView: View {
         .background(Color.black)
 }
 
+
+
