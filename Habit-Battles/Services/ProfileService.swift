@@ -58,14 +58,23 @@ class ProfileService: ObservableObject {
             updatedAt: Date()
         )
         
-        // Insert new profile into database
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let profileJSON = try encoder.encode(newProfile)
+        // Create profile insert payload (exclude auto-generated fields)
+        struct ProfileInsert: Codable {
+            let id: String
+            let username: String
+            let avatar_url: String?
+        }
         
+        let profilePayload = ProfileInsert(
+            id: userId,
+            username: defaultUsername,
+            avatar_url: nil
+        )
+        
+        // Insert profile directly - Supabase SDK handles encoding
         try await supabase
             .from("profiles")
-            .insert(profileJSON)
+            .insert(profilePayload)
             .execute()
         
         self.currentProfile = newProfile
@@ -102,13 +111,21 @@ class ProfileService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let profileJSON = try encoder.encode(profile)
+        // Create update payload (exclude id and auto-generated timestamps)
+        struct ProfileUpdate: Codable {
+            let username: String
+            let avatar_url: String?
+        }
         
+        let updatePayload = ProfileUpdate(
+            username: profile.username,
+            avatar_url: profile.avatarUrl
+        )
+        
+        // Update profile directly - Supabase SDK handles encoding
         try await supabase
             .from("profiles")
-            .update(profileJSON)
+            .update(updatePayload)
             .eq("id", value: profile.id)
             .execute()
         

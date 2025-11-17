@@ -26,8 +26,11 @@ struct Habit_BattlesApp: App {
                         .environmentObject(authService)
                 } else if let callbackURL = callbackURL {
                     // Show callback view when handling auth redirect
-                    AuthCallbackView(url: callbackURL)
-                        .environmentObject(authService)
+                    AuthCallbackView(url: callbackURL) {
+                        // Clear callback URL after successful authentication
+                        self.callbackURL = nil
+                    }
+                    .environmentObject(authService)
                 } else {
                     // Show login screen when not authenticated
                     LoginView()

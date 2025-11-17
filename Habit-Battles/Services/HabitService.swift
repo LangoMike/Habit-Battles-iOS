@@ -119,18 +119,20 @@ class HabitService: ObservableObject {
             throw NSError(domain: "HabitService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Target per week must be between 1 and 7"])
         }
         
-        let newHabit = Habit(
-            id: UUID().uuidString,
-            userId: userId,
-            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            targetPerWeek: targetPerWeek,
-            schedule: "daily",
-            timezone: timezone,
-            createdAt: Date()
-        )
+        let habitId = UUID().uuidString
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         
 #if DEBUG
         if AuthService.isDebugUserId(userId) {
+            let newHabit = Habit(
+                id: habitId,
+                userId: userId,
+                name: trimmedName,
+                targetPerWeek: targetPerWeek,
+                schedule: "daily",
+                timezone: timezone,
+                createdAt: Date()
+            )
             let newHabitWithProgress = HabitWithProgress(
                 habit: newHabit,
                 doneToday: false,
@@ -142,14 +144,41 @@ class HabitService: ObservableObject {
         }
 #endif
         
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let habitJSON = try encoder.encode(newHabit)
+        // Create habit payload (exclude createdAt if DB auto-generates it)
+        struct HabitInsert: Codable {
+            let id: String
+            let user_id: String
+            let name: String
+            let target_per_week: Int
+            let schedule: String
+            let timezone: String
+        }
         
+        let habitPayload = HabitInsert(
+            id: habitId,
+            user_id: userId,
+            name: trimmedName,
+            target_per_week: targetPerWeek,
+            schedule: "daily",
+            timezone: timezone
+        )
+        
+        // Insert habit directly - Supabase SDK handles encoding
         try await supabase
             .from("habits")
-            .insert(habitJSON)
+            .insert(habitPayload)
             .execute()
+        
+        // Create Habit object for return value
+        let newHabit = Habit(
+            id: habitId,
+            userId: userId,
+            name: trimmedName,
+            targetPerWeek: targetPerWeek,
+            schedule: "daily",
+            timezone: timezone,
+            createdAt: Date()
+        )
         
         // Refresh habits list
         try await fetchHabits(userId: userId, timezone: timezone)
@@ -178,13 +207,25 @@ class HabitService: ObservableObject {
         }
 #endif
         
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let habitJSON = try encoder.encode(habit)
+        // Create update payload excluding fields that shouldn't change
+        struct HabitUpdate: Codable {
+            let name: String
+            let target_per_week: Int
+            let schedule: String
+            let timezone: String
+        }
         
+        let updatePayload = HabitUpdate(
+            name: habit.name,
+            target_per_week: habit.targetPerWeek,
+            schedule: habit.schedule,
+            timezone: habit.timezone
+        )
+        
+        // Update habit directly - Supabase SDK handles encoding
         try await supabase
             .from("habits")
-            .update(habitJSON)
+            .update(updatePayload)
             .eq("id", value: habit.id)
             .execute()
         
@@ -265,22 +306,25 @@ class HabitService: ObservableObject {
             }
         }
         
-        // Create check-in
-        let checkIn = CheckIn(
+        // Create check-in payload (exclude createdAt if DB auto-generates it)
+        struct CheckInInsert: Codable {
+            let id: String
+            let user_id: String
+            let habit_id: String
+            let checkin_date: String
+        }
+        
+        let checkInPayload = CheckInInsert(
             id: UUID().uuidString,
-            userId: userId,
-            habitId: habitId,
-            checkinDate: today,
-            createdAt: Date()
+            user_id: userId,
+            habit_id: habitId,
+            checkin_date: today
         )
         
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let checkInJSON = try encoder.encode(checkIn)
-        
+        // Insert check-in directly - Supabase SDK handles encoding
         try await supabase
             .from("checkins")
-            .insert(checkInJSON)
+            .insert(checkInPayload)
             .execute()
         
         // Refresh habits list to update progress

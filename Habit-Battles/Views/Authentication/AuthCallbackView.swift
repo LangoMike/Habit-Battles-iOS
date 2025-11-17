@@ -9,11 +9,12 @@ import SwiftUI
 import Supabase
 
 struct AuthCallbackView: View {
-    @StateObject private var authService = AuthService()
+    @EnvironmentObject var authService: AuthService
     @State private var isLoading = true
     @State private var errorMessage: String?
     
     let url: URL
+    let onComplete: () -> Void
     
     var body: some View {
         VStack {
@@ -60,13 +61,22 @@ struct AuthCallbackView: View {
                 let supabase = SupabaseManager.shared.client
                 try await supabase.auth.session(from: url)
                 
-                // Refresh session
+                // Refresh session in the shared auth service
                 await authService.checkSession()
                 
-                isLoading = false
+                // Wait a moment for state to propagate
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                
+                // Notify parent that authentication is complete
+                await MainActor.run {
+                    isLoading = false
+                    onComplete()
+                }
             } catch {
-                errorMessage = error.localizedDescription
-                isLoading = false
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    isLoading = false
+                }
             }
         }
     }
