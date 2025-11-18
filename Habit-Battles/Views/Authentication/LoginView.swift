@@ -84,6 +84,58 @@ struct LoginView: View {
                 }
                 .disabled(isLoading || email.isEmpty)
                 .opacity((isLoading || email.isEmpty) ? 0.6 : 1.0)
+                
+                // Divider between email and OAuth options
+                HStack {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 1)
+                    Text("OR")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 8)
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 1)
+                }
+                .padding(.vertical, 8)
+                
+                // OAuth sign-in buttons
+                VStack(spacing: 12) {
+                    // Sign in with Google button
+                    Button(action: handleGoogleSignIn) {
+                        HStack {
+                            Image(systemName: "globe")
+                                .font(.system(size: 18))
+                            Text("Continue with Google")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.white)
+                        .foregroundColor(.black)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
+                    .opacity(isLoading ? 0.6 : 1.0)
+                    
+                    // Sign in with GitHub button
+                    Button(action: handleGitHubSignIn) {
+                        HStack {
+                            Image(systemName: "link")
+                                .font(.system(size: 18))
+                            Text("Continue with GitHub")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.gray.opacity(0.2))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
+                    .opacity(isLoading ? 0.6 : 1.0)
+                }
 #if DEBUG
 #if targetEnvironment(simulator)
                 Button {
@@ -131,6 +183,40 @@ struct LoginView: View {
                 errorMessage = "Failed to send magic link: \(error.localizedDescription)"
             }
             isLoading = false
+        }
+    }
+    
+    /// Handle sign in with Google OAuth
+    private func handleGoogleSignIn() {
+        isLoading = true
+        errorMessage = nil
+        showSuccessMessage = false
+        
+        Task {
+            do {
+                try await authService.signInWithGoogle()
+                // OAuth will redirect back to app via deep link, handled by AuthCallbackView
+            } catch {
+                errorMessage = "Failed to sign in with Google: \(error.localizedDescription)"
+                isLoading = false
+            }
+        }
+    }
+    
+    /// Handle sign in with GitHub OAuth
+    private func handleGitHubSignIn() {
+        isLoading = true
+        errorMessage = nil
+        showSuccessMessage = false
+        
+        Task {
+            do {
+                try await authService.signInWithGitHub()
+                // OAuth will redirect back to app via deep link, handled by AuthCallbackView
+            } catch {
+                errorMessage = "Failed to sign in with GitHub: \(error.localizedDescription)"
+                isLoading = false
+            }
         }
     }
 }

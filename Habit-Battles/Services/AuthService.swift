@@ -75,6 +75,34 @@ class AuthService: ObservableObject {
         )
     }
     
+    /// Sign in with Google OAuth provider
+    /// Opens browser for OAuth authentication, redirects back to app via deep link
+    func signInWithGoogle() async throws {
+        isLoading = true
+        defer { isLoading = false }
+        
+        // Initiate OAuth flow with Google provider
+        // Opens browser/Safari View Controller for user to authenticate
+        try await supabase.auth.signInWithOAuth(
+            provider: .google,
+            redirectTo: URL(string: "habit-battles://auth/callback")
+        )
+    }
+    
+    /// Sign in with GitHub OAuth provider
+    /// Opens browser for OAuth authentication, redirects back to app via deep link
+    func signInWithGitHub() async throws {
+        isLoading = true
+        defer { isLoading = false }
+        
+        // Initiate OAuth flow with GitHub provider
+        // Opens browser/Safari View Controller for user to authenticate
+        try await supabase.auth.signInWithOAuth(
+            provider: .github,
+            redirectTo: URL(string: "habit-battles://auth/callback")
+        )
+    }
+    
     /// Sign out the current user
     func signOut() async throws {
         isLoading = true
