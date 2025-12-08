@@ -37,7 +37,7 @@ struct StreakDisplayView: View {
                 // Daily Streak
                 StreakCard(
                     streak: streakData.dailyStreak,
-                    type: "Daily",
+                    type: .daily,
                     message: getStreakMessage(streakData.dailyStreak, type: .daily),
                     color: .red
                 )
@@ -46,7 +46,7 @@ struct StreakDisplayView: View {
                 if showWeekly && streakData.weeklyStreak > 0 {
                     StreakCard(
                         streak: streakData.weeklyStreak,
-                        type: "Weekly",
+                        type: .weekly,
                         message: getStreakMessage(streakData.weeklyStreak, type: .weekly),
                         color: .orange
                     )
@@ -129,11 +129,18 @@ struct StreakDisplayView: View {
 enum StreakType {
     case daily
     case weekly
+    
+    var unit: String {
+        switch self {
+        case .daily: return "day"
+        case .weekly: return "week"
+        }
+    }
 }
 
 struct StreakCard: View {
     let streak: Int
-    let type: String
+    let type: StreakType
     let message: String
     let color: Color
     
@@ -144,7 +151,7 @@ struct StreakCard: View {
                 .font(.title3)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(streak) \(type.lowercased())\(streak != 1 ? "s" : "") in a row")
+                Text("\(streak) \(type.unit)\(streak != 1 ? "s" : "") in a row")
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.white)
@@ -156,7 +163,7 @@ struct StreakCard: View {
             
             Spacer()
             
-            Text(type)
+            Text(type == .daily ? "Daily" : "Weekly")
                 .font(.caption)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
@@ -208,6 +215,3 @@ struct StreakCard: View {
     .padding()
     .background(Color.black)
 }
-
-
-
