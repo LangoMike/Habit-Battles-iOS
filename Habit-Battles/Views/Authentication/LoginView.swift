@@ -18,9 +18,9 @@ struct LoginView: View {
         VStack(spacing: 24) {
             // Logo and title
             VStack(spacing: 16) {
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 64))
-                    .foregroundColor(.red)
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
                 
                 Text("Habit Battles")
                     .font(.largeTitle)

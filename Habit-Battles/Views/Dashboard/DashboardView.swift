@@ -31,9 +31,10 @@ struct DashboardView: View {
                 VStack(spacing: 24) {
                 // Welcome Header
                 VStack(spacing: 16) {
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.red)
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: UIScreen.main.bounds.width  * 0.4)
                     
                     VStack(spacing: 4) {
                         Text("Welcome\(username != nil ? ", \(username!)" : "")!")
